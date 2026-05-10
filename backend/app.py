@@ -3,6 +3,7 @@ import os
 from flask import Flask, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
+from werkzeug.exceptions import HTTPException
 
 # Ensure project root is on sys.path so `import backend...` works when
 # running `python backend/app.py` from the repository root.
@@ -19,6 +20,7 @@ def create_app():
 
 	# Minimal config
 	app.config['JWT_SECRET'] = os.environ.get('JWT_SECRET', 'dev-secret')
+	app.config['JSON_SORT_KEYS'] = False
 
 	# Register blueprints
 	from backend.routes.auth import auth_bp
@@ -30,12 +32,11 @@ def create_app():
 	# Global JSON error handler
 	@app.errorhandler(Exception)
 	def handle_exception(e):
-		# For HTTPExceptions, use their code and description
-		try:
-			code = e.code
-		except AttributeError:
-			code = 500
-		return jsonify({'error': str(e)}), code
+		# HTTPExceptions (e.g., abort(404)) have a code and description
+		if isinstance(e, HTTPException):
+			return jsonify({'error': e.description}), e.code
+		# Non-HTTP exceptions -> 500
+		return jsonify({'error': 'Internal server error'}), 500
 
 	return app
 
@@ -43,4 +44,5 @@ def create_app():
 if __name__ == '__main__':
 	app = create_app()
 	port = int(os.environ.get('PORT', 3000))
-	app.run(host='0.0.0.0', port=port, debug=True)
+	debug = os.environ.get('FLASK_DEBUG', 'false').lower() in ('1', 'true', 'yes')
+	app.run(host='0.0.0.0', port=port, debug=debug)

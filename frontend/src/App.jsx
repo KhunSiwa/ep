@@ -1,29 +1,51 @@
-import React from 'react'
-import { Routes, Route, Link, Navigate } from 'react-router-dom'
-import Login from './pages/Login'
+import React, { useEffect, useState } from 'react'
+import { Navigate, Route, Routes } from 'react-router-dom'
+import AppLayout from './components/AppLayout'
 import Dashboard from './pages/Dashboard'
+import Landing from './pages/Landing'
+import Login from './pages/Login'
 import Planner from './pages/Planner'
 
 function PrivateRoute({ children }) {
   const token = localStorage.getItem('token')
-  if (!token) return <Navigate to="/login" replace />
-  return children
+  return token ? children : <Navigate to="/login" replace />
 }
 
 export default function App() {
+  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light')
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+    localStorage.setItem('theme', theme)
+  }, [theme])
+
+  const toggleTheme = () => setTheme((current) => (current === 'dark' ? 'light' : 'dark'))
+
   return (
-    <div>
-      <nav style={{ padding: 8, borderBottom: '1px solid #ddd' }}>
-        <Link to="/dashboard" style={{ marginRight: 8 }}>Dashboard</Link>
-        <Link to="/planner" style={{ marginRight: 8 }}>Planner</Link>
-        <Link to="/login">Login</Link>
-      </nav>
-      <Routes>
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
-        <Route path="/planner" element={<PrivateRoute><Planner /></PrivateRoute>} />
-      </Routes>
-    </div>
+    <Routes>
+      <Route path="/" element={<Landing theme={theme} onToggleTheme={toggleTheme} />} />
+      <Route path="/login" element={<Login theme={theme} onToggleTheme={toggleTheme} />} />
+      <Route
+        path="/dashboard"
+        element={
+          <PrivateRoute>
+            <AppLayout theme={theme} onToggleTheme={toggleTheme}>
+              <Dashboard />
+            </AppLayout>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/planner"
+        element={
+          <PrivateRoute>
+            <AppLayout theme={theme} onToggleTheme={toggleTheme}>
+              <Planner />
+            </AppLayout>
+          </PrivateRoute>
+        }
+      />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   )
 }

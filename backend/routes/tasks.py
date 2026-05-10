@@ -8,12 +8,12 @@ tasks_bp = Blueprint('tasks', __name__)
 
 def _row_to_task(row):
 	return {
-		'id': row[0],
-		'user_id': row[1],
-		'title': row[2],
-		'description': row[3],
-		'status': row[4],
-		'due_date': row[5].isoformat() if row[5] else None,
+		'id': row['id'],
+		'user_id': row['user_id'],
+		'title': row['title'],
+		'description': row.get('description'),
+		'status': row.get('status'),
+		'due_date': row['due_date'].isoformat() if row.get('due_date') else None,
 	}
 
 
@@ -22,7 +22,7 @@ def _row_to_task(row):
 def list_tasks():
 	user_id = g.user_id
 	conn = get_db_connection()
-	cur = conn.cursor()
+	cur = conn.cursor(dictionary=True)
 	try:
 		cur.execute('SELECT id, user_id, title, description, status, due_date FROM tasks WHERE user_id = %s', (user_id,))
 		rows = cur.fetchall()
@@ -38,12 +38,16 @@ def list_tasks():
 def create_task():
 	user_id = g.user_id
 	data = request.get_json() or {}
-	title = data.get('title')
+	title = (data.get('title') or '').strip()
 	description = data.get('description')
 	status = data.get('status', 'pending')
 	due_date = data.get('due_date')
 	if not title:
 		return jsonify({'error': 'title is required'}), 400
+
+	allowed_status = {'pending', 'in_progress', 'done'}
+	if status not in allowed_status:
+		return jsonify({'error': f'status must be one of {list(allowed_status)}'}), 400
 
 	# parse due_date if provided
 	due = None
@@ -81,30 +85,35 @@ def update_task(task_id):
 		return jsonify({'error': 'no fields to update'}), 400
 
 	conn = get_db_connection()
-	cur = conn.cursor()
+	cur = conn.cursor(dictionary=True)
 	try:
 		# Ensure ownership
 		cur.execute('SELECT user_id FROM tasks WHERE id = %s', (task_id,))
 		row = cur.fetchone()
-		if not row or row[0] != user_id:
+		if not row or row['user_id'] != user_id:
 			return jsonify({'error': 'not found or unauthorized'}), 404
 
-		# Build update
-		set_clauses = []
+		# Validate fields
 		params = []
+		set_clauses = []
+		allowed_status = {'pending', 'in_progress', 'done'}
 		for k, v in fields.items():
 			if k == 'due_date' and v is not None:
-				# validate ISO date
 				try:
 					datetime.fromisoformat(v)
 				except Exception:
 					return jsonify({'error': 'due_date must be ISO format'}), 400
+			if k == 'status' and v not in allowed_status:
+				return jsonify({'error': f'status must be one of {list(allowed_status)}'}), 400
 			set_clauses.append(f"{k} = %s")
 			params.append(v)
+
 		params.append(task_id)
 		sql = f"UPDATE tasks SET {', '.join(set_clauses)} WHERE id = %s"
-		cur.execute(sql, tuple(params))
+		cur2 = conn.cursor()
+		cur2.execute(sql, tuple(params))
 		conn.commit()
+		cur2.close()
 		return jsonify({'message': 'updated'}), 200
 	finally:
 		cur.close()
@@ -120,7 +129,7 @@ def delete_task(task_id):
 	try:
 		cur.execute('SELECT user_id FROM tasks WHERE id = %s', (task_id,))
 		row = cur.fetchone()
-		if not row or row[0] != user_id:
+		if not row or (row[0] if isinstance(row, tuple) else row.get('user_id')) != user_id:
 			return jsonify({'error': 'not found or unauthorized'}), 404
 
 		cur.execute('DELETE FROM tasks WHERE id = %s', (task_id,))

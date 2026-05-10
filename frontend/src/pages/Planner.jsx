@@ -1,93 +1,153 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import api from '../api'
+import EmptyState from '../components/EmptyState'
+import LoadingState from '../components/LoadingState'
+import TaskCard from '../components/TaskCard'
+import TaskModal from '../components/TaskModal'
 
 export default function Planner() {
-	const [tasks, setTasks] = useState([])
-	const [title, setTitle] = useState('')
-	const [description, setDescription] = useState('')
-	const [dueDate, setDueDate] = useState('')
-	const [error, setError] = useState(null)
+  const [tasks, setTasks] = useState([])
+  const [error, setError] = useState('')
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [editingTask, setEditingTask] = useState(null)
+  const [filter, setFilter] = useState('all')
+  const [search, setSearch] = useState('')
 
-	const load = async () => {
-		try {
-			const res = await api.get('/tasks')
-			setTasks(res.data.tasks || [])
-		} catch (err) {
-			setError(err.error || 'Failed to load tasks')
-		}
-	}
+  const loadTasks = async () => {
+    setError('')
+    try {
+      const response = await api.get('/tasks')
+      setTasks(response.data.tasks || [])
+    } catch (err) {
+      setError(err.error || 'Failed to load tasks.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
-	useEffect(() => { load() }, [])
+  useEffect(() => {
+    loadTasks()
+  }, [])
 
-	const add = async (e) => {
-		e.preventDefault()
-		setError(null)
-		try {
-			await api.post('/tasks', { title, description, due_date: dueDate })
-			setTitle('')
-			setDescription('')
-			setDueDate('')
-			await load()
-		} catch (err) {
-			setError(err.error || 'Failed to create task')
-		}
-	}
+  // Search and status filters are kept client-side for a fast planning workflow.
+  const filteredTasks = useMemo(() => {
+    const query = search.trim().toLowerCase()
+    return tasks.filter((task) => {
+      const matchesStatus = filter === 'all' || task.status === filter
+      const matchesSearch = !query || `${task.title} ${task.description || ''}`.toLowerCase().includes(query)
+      return matchesStatus && matchesSearch
+    })
+  }, [filter, search, tasks])
 
-	const toggleStatus = async (task) => {
-		const newStatus = task.status === 'completed' ? 'pending' : 'completed'
-		try {
-			await api.put(`/tasks/${task.id}`, { status: newStatus })
-			await load()
-		} catch (err) {
-			setError(err.error || 'Failed to update')
-		}
-	}
+  const openCreateModal = () => {
+    setEditingTask(null)
+    setIsModalOpen(true)
+  }
 
-	const remove = async (task) => {
-		try {
-			await api.delete(`/tasks/${task.id}`)
-			await load()
-		} catch (err) {
-			setError(err.error || 'Failed to delete')
-		}
-	}
+  const openEditModal = (task) => {
+    setEditingTask(task)
+    setIsModalOpen(true)
+  }
 
-	return (
-		<div className="container">
-			<h2>Planner</h2>
-			<form onSubmit={add} className="card">
-				<div>
-					<label>Title</label>
-					<input value={title} onChange={e => setTitle(e.target.value)} required />
-				</div>
-				<div>
-					<label>Description</label>
-					<input value={description} onChange={e => setDescription(e.target.value)} />
-				</div>
-				<div>
-					<label>Due Date</label>
-					<input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
-				</div>
-				<div style={{ marginTop: 8 }}>
-					<button type="submit">Add Task</button>
-				</div>
-			</form>
+  const saveTask = async (payload) => {
+    setIsSaving(true)
+    setError('')
+    try {
+      if (editingTask) {
+        await api.put(`/tasks/${editingTask.id}`, payload)
+      } else {
+        await api.post('/tasks', payload)
+      }
+      setIsModalOpen(false)
+      setEditingTask(null)
+      await loadTasks()
+    } catch (err) {
+      setError(err.error || 'Failed to save task.')
+    } finally {
+      setIsSaving(false)
+    }
+  }
 
-			{error && <div style={{ color: 'red' }}>{error}</div>}
+  const deleteTask = async (task) => {
+    setError('')
+    try {
+      await api.delete(`/tasks/${task.id}`)
+      await loadTasks()
+    } catch (err) {
+      setError(err.error || 'Failed to delete task.')
+    }
+  }
 
-			<div style={{ marginTop: 12 }}>
-				{tasks.map(t => (
-					<div key={t.id} className="card">
-						<div><strong>{t.title}</strong></div>
-						<div>{t.description}</div>
-						<div>Due: {t.due_date || '—'}</div>
-						<div>
-							<button onClick={() => toggleStatus(t)} style={{ marginRight: 8 }}>{t.status === 'completed' ? 'Mark Pending' : 'Mark Completed'}</button>
-							<button onClick={() => remove(t)}>Delete</button>
-						</div>
-					</div>
-				))}
-			</div>
-		</div>
-	)
+  const toggleStatus = async (task) => {
+    setError('')
+    try {
+      await api.put(`/tasks/${task.id}`, {
+        status: task.status === 'completed' ? 'pending' : 'completed',
+      })
+      await loadTasks()
+    } catch (err) {
+      setError(err.error || 'Failed to update task.')
+    }
+  }
+
+  return (
+    <div className="page-stack">
+      <section className="page-heading split-heading">
+        <div>
+          <span className="eyebrow">Planner</span>
+          <h2>Organize your task pipeline</h2>
+          <p>Search, filter, update status, and keep every task moving from one responsive workspace.</p>
+        </div>
+        <button className="button button-primary" onClick={openCreateModal} type="button">
+          Add task
+        </button>
+      </section>
+
+      <section className="filter-bar">
+        <label className="search-field">
+          <span>Search</span>
+          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search tasks or descriptions" />
+        </label>
+        <div className="segmented-control" aria-label="Filter tasks">
+          {['all', 'pending', 'completed'].map((option) => (
+            <button key={option} className={filter === option ? 'active' : ''} onClick={() => setFilter(option)} type="button">
+              {option}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {error && <div className="alert alert-error">{error}</div>}
+
+      {isLoading ? (
+        <LoadingState rows={3} />
+      ) : filteredTasks.length === 0 ? (
+        <EmptyState
+          title="No matching tasks"
+          description="Adjust your filters or create a new task to start planning."
+          action={
+            <button className="button button-primary" onClick={openCreateModal} type="button">
+              Add task
+            </button>
+          }
+        />
+      ) : (
+        <section className="task-grid">
+          {filteredTasks.map((task) => (
+            <TaskCard key={task.id} task={task} onEdit={openEditModal} onDelete={deleteTask} onToggleStatus={toggleStatus} />
+          ))}
+        </section>
+      )}
+
+      <TaskModal
+        isOpen={isModalOpen}
+        initialTask={editingTask}
+        onClose={() => setIsModalOpen(false)}
+        onSubmit={saveTask}
+        isSaving={isSaving}
+      />
+    </div>
+  )
 }
