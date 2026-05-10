@@ -29,6 +29,11 @@ def create_app():
 	app.register_blueprint(auth_bp, url_prefix='/api/auth')
 	app.register_blueprint(tasks_bp, url_prefix='/api/tasks')
 
+	# Simple API root/health endpoint so frontends can probe the API base
+	@app.route('/api', methods=['GET'])
+	def api_root():
+		return jsonify({'message': 'API is running'}), 200
+
 	# Global JSON error handler
 	@app.errorhandler(Exception)
 	def handle_exception(e):

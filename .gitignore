@@ -1,0 +1,8 @@
+.mysql-data/
+__pycache__/
+*.py[cod]
+.Python
+.env
+
+frontend/dist/
+frontend/node_modules/

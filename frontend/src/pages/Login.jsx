@@ -28,7 +28,11 @@ export default function Login({ theme, onToggleTheme }) {
     setIsSubmitting(true)
     try {
       const response = await api.post('/auth/login', { email, password })
-      localStorage.setItem('token', response.data.token)
+      const token = response.data?.token?.trim()
+      if (!token) {
+        throw new Error('Login response did not include a token.')
+      }
+      localStorage.setItem('token', token)
       navigate('/dashboard')
     } catch (err) {
       setError(err.error || err.message || 'Login failed. Check your credentials and try again.')

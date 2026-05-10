@@ -17,6 +17,7 @@ def _row_to_task(row):
 	}
 
 
+@tasks_bp.route('', methods=['GET'])
 @tasks_bp.route('/', methods=['GET'])
 @jwt_required
 def list_tasks():
@@ -33,6 +34,7 @@ def list_tasks():
 		conn.close()
 
 
+@tasks_bp.route('', methods=['POST'])
 @tasks_bp.route('/', methods=['POST'])
 @jwt_required
 def create_task():
@@ -45,7 +47,7 @@ def create_task():
 	if not title:
 		return jsonify({'error': 'title is required'}), 400
 
-	allowed_status = {'pending', 'in_progress', 'done'}
+	allowed_status = {'pending', 'completed'}
 	if status not in allowed_status:
 		return jsonify({'error': f'status must be one of {list(allowed_status)}'}), 400
 
@@ -96,7 +98,7 @@ def update_task(task_id):
 		# Validate fields
 		params = []
 		set_clauses = []
-		allowed_status = {'pending', 'in_progress', 'done'}
+		allowed_status = {'pending', 'completed'}
 		for k, v in fields.items():
 			if k == 'due_date' and v is not None:
 				try:

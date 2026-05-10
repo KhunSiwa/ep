@@ -1,6 +1,12 @@
 import axios from 'axios';
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000/api';
+const API_BASE = import.meta.env.VITE_API_BASE || '/api';
+
+export function getAuthToken() {
+	const token = localStorage.getItem('token')?.trim();
+	if (!token || token === 'undefined' || token === 'null') return null;
+	return token;
+}
 
 const api = axios.create({
 	baseURL: API_BASE,
@@ -11,7 +17,7 @@ const api = axios.create({
 
 // Attach token automatically
 api.interceptors.request.use((config) => {
-	const token = localStorage.getItem('token');
+	const token = getAuthToken();
 	if (token) {
 		config.headers = config.headers || {};
 		config.headers['Authorization'] = `Bearer ${token}`;
@@ -23,6 +29,12 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
 	(res) => res,
 	(err) => {
+		if (err.response?.status === 401) {
+			localStorage.removeItem('token');
+			if (window.location.pathname !== '/login') {
+				window.location.assign('/login');
+			}
+		}
 		if (err.response && err.response.data) {
 			return Promise.reject(err.response.data);
 		}

@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import AppLayout from './components/AppLayout'
+import { getAuthToken } from './api'
 import Dashboard from './pages/Dashboard'
 import Landing from './pages/Landing'
 import Login from './pages/Login'
 import Planner from './pages/Planner'
 
 function PrivateRoute({ children }) {
-  const token = localStorage.getItem('token')
+  const token = getAuthToken()
   return token ? children : <Navigate to="/login" replace />
 }
 
