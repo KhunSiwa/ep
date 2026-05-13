@@ -4,6 +4,7 @@ import EmptyState from '../components/EmptyState'
 import LoadingState from '../components/LoadingState'
 import TaskCard from '../components/TaskCard'
 import TaskModal from '../components/TaskModal'
+import { calculateProgress, inferStatusFromProgress, TASK_STATUSES } from '../taskOptions'
 
 export default function Planner() {
   const [tasks, setTasks] = useState([])
@@ -71,6 +72,9 @@ export default function Planner() {
   }
 
   const deleteTask = async (task) => {
+    const confirmed = window.confirm(`Delete "${task.title}"? This action cannot be undone.`)
+    if (!confirmed) return
+
     setError('')
     try {
       await api.delete(`/tasks/${task.id}`)
@@ -82,13 +86,32 @@ export default function Planner() {
 
   const toggleStatus = async (task) => {
     setError('')
+    const nextStatus = task.status === 'completed' ? 'pending' : 'completed'
+    const checklist = (task.checklist || []).map((item) => ({ ...item, done: nextStatus === 'completed' }))
+    const progress = nextStatus === 'completed' ? 100 : calculateProgress(checklist, 0)
     try {
       await api.put(`/tasks/${task.id}`, {
-        status: task.status === 'completed' ? 'pending' : 'completed',
+        status: nextStatus,
+        progress,
+        checklist,
       })
       await loadTasks()
     } catch (err) {
       setError(err.error || 'Failed to update task.')
+    }
+  }
+
+  const toggleChecklistItem = async (task, itemId) => {
+    const checklist = (task.checklist || []).map((item) => (item.id === itemId ? { ...item, done: !item.done } : item))
+    const progress = calculateProgress(checklist, task.progress)
+    const status = inferStatusFromProgress(progress, task.status)
+
+    setError('')
+    try {
+      await api.put(`/tasks/${task.id}`, { checklist, progress, status })
+      await loadTasks()
+    } catch (err) {
+      setError(err.error || 'Failed to update checklist.')
     }
   }
 
@@ -111,9 +134,9 @@ export default function Planner() {
           <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search tasks or descriptions" />
         </label>
         <div className="segmented-control" aria-label="Filter tasks">
-          {['all', 'pending', 'completed'].map((option) => (
-            <button key={option} className={filter === option ? 'active' : ''} onClick={() => setFilter(option)} type="button">
-              {option}
+          {[{ value: 'all', label: 'All' }, ...TASK_STATUSES].map((option) => (
+            <button key={option.value} className={filter === option.value ? 'active' : ''} onClick={() => setFilter(option.value)} type="button">
+              {option.label}
             </button>
           ))}
         </div>
@@ -136,7 +159,14 @@ export default function Planner() {
       ) : (
         <section className="task-grid">
           {filteredTasks.map((task) => (
-            <TaskCard key={task.id} task={task} onEdit={openEditModal} onDelete={deleteTask} onToggleStatus={toggleStatus} />
+            <TaskCard
+              key={task.id}
+              task={task}
+              onEdit={openEditModal}
+              onDelete={deleteTask}
+              onToggleStatus={toggleStatus}
+              onToggleChecklistItem={toggleChecklistItem}
+            />
           ))}
         </section>
       )}

@@ -55,6 +55,22 @@ select {
   font: inherit;
 }
 
+input[type="checkbox"],
+input[type="range"] {
+  width: auto;
+}
+
+input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary);
+}
+
+input[type="range"] {
+  width: 100%;
+  accent-color: var(--primary);
+}
+
 button {
   cursor: pointer;
 }
@@ -493,6 +509,7 @@ input.invalid {
 
 .segmented-control {
   display: flex;
+  flex-wrap: wrap;
   padding: 4px;
   border-radius: var(--radius);
   background: var(--surface-soft);
@@ -553,6 +570,67 @@ input.invalid {
   font-size: 0.86rem;
 }
 
+.task-progress {
+  display: grid;
+  gap: 8px;
+}
+
+.task-progress-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.task-progress-meta strong {
+  color: var(--text);
+}
+
+.progress-track {
+  height: 9px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--surface-soft);
+}
+
+.progress-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--primary), var(--green));
+  transition: width 180ms ease;
+}
+
+.task-checklist {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+}
+
+.task-checklist-item {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  align-items: start;
+  gap: 9px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.task-checklist-item span {
+  color: var(--text);
+  line-height: 1.35;
+}
+
+.task-checklist small,
+.muted-copy,
+.field-hint {
+  color: var(--muted);
+}
+
 .status-badge {
   display: inline-flex;
   align-items: center;
@@ -573,6 +651,26 @@ input.invalid {
 .status-badge.pending {
   background: color-mix(in srgb, var(--amber) 18%, transparent);
   color: var(--amber);
+}
+
+.status-badge.backlog {
+  background: color-mix(in srgb, var(--muted) 18%, transparent);
+  color: var(--muted);
+}
+
+.status-badge.in_progress {
+  background: color-mix(in srgb, var(--primary) 16%, transparent);
+  color: var(--primary);
+}
+
+.status-badge.blocked {
+  background: color-mix(in srgb, var(--red) 12%, transparent);
+  color: var(--red);
+}
+
+.status-badge.review {
+  background: color-mix(in srgb, var(--green) 12%, transparent);
+  color: var(--green);
 }
 
 .icon-action {
@@ -597,7 +695,9 @@ input.invalid {
 }
 
 .modal-card {
-  width: min(560px, 100%);
+  width: min(640px, 100%);
+  max-height: min(88vh, 860px);
+  overflow: auto;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
@@ -625,6 +725,39 @@ input.invalid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
+}
+
+.checklist-editor {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+}
+
+.checklist-editor-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.checklist-editor-head strong {
+  display: block;
+  margin-top: 3px;
+}
+
+.checklist-editor-list {
+  display: grid;
+  gap: 10px;
+}
+
+.checklist-editor-row {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
 }
 
 .modal-actions {
